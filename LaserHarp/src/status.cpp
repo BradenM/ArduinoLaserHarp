@@ -1,40 +1,40 @@
 #include <Arduino.h>
 #include <status.h>
 
-int buttonState = 0;
-int prevState = 0;
+int newState;
+int prevState = LOW;
 int buttonCount = 0;
+extern bool harpStatus;
+long time;
+long debounce = 200;
 
-void setStatus(bool status)
+void setStatus(int status)
 {
-  if(status == true){
-    analogWrite(redPin, 0);
-    analogWrite(greenPin, 0);
-  }
-  else{
-    analogWrite(redPin, 255);
-    analogWrite(greenPin, 0);
+  switch(status){
+    case 0:
+      analogWrite(redPin, 255);
+      analogWrite(greenPin, 0);
+      break;
+    case 1:
+      analogWrite(redPin, 0);
+      analogWrite(greenPin, 255);
+      break;
+    case 2:
+      analogWrite(redPin, 0);
+      analogWrite(greenPin, 0);
   }
 }
 
-bool checkControl(bool curState){
+bool checkControl(){
   int controlState = digitalRead(controlPin);
-  if (controlState != prevState){
+  if (controlState == HIGH && prevState == LOW && millis() - time > debounce){
     if (controlState == HIGH){
-      buttonCount++;
-      Serial.println("STATE HIGH");
+
     }
-    else{
-      Serial.println("BUTTON STATE LOW");
+    else
+      newState = !harpStatus;
     }
-    delay(50);
-  }
+  time = millis();
   prevState = controlState;
-
-if (buttonCount % 2 == 0) {
-  return curState;
-} else {
-  return !curState;
-}
-
+  return newState;
 }
