@@ -2,6 +2,7 @@
 #include <Stepper.h>
 #include <status.h>
 #include <sound.h>
+#include <harpControl.h>
 #include <main.h>
 
 // Light Sensor
@@ -10,7 +11,9 @@ float rawRange = 1024; // 3.3v
 float logRange = 5.0; // 3.3v = 10^5 lux
 int rawLight = 0;
 int lightRead = 0;
-int sensorTrig = 25;
+int sensorThreshold = 40;
+int sensorToss = 100;
+int curLight = 0;
 
 
 // Harp Settings
@@ -20,13 +23,14 @@ int noteCount = 0;
 bool isHome = true;
 const int noteSpace = 16;
 bool position = false;
-int start_adjust = 5;
+int start_adjust = -1;
 int beamDelay = 8;
 
 // Laser and Readings
 const int beamPin = 7;
-int baseReadings[] = {};
-int beamReadings[] = {};
+int beamCount = 0;
+int baseReadings[4] = {0, 0, 0, 0};
+int beamReadings[4] = {0, 0, 0, 0};
 
 
 // Stepper
@@ -36,9 +40,6 @@ Stepper harpStepper(revSteps, 8, 10, 9, 11);
 
 void setup() {
   setStatus(STANDBY);
-  if (position == true){
-    //beamDelay = 100;
-  }
   analogReference(EXTERNAL);
   pinMode(beamPin, OUTPUT);
   pinMode(redPin, OUTPUT);
@@ -49,28 +50,14 @@ void setup() {
   harpStepper.step(noteSpace * start_adjust);
   delay(100);
   //harpPlay(STARTUP, 2);
+  if (position == true){
+    digitalWrite(beamPin, HIGH);
+    while(1){
+      delay(100);
+    }
+  }
 }
 
-void collectBase(){
-  setStatus(ACTIVE);
-  for(int x=0; x<=3; x++){
-    harpStepper.step(noteSpace * direction);
-    digitalWrite(beamPin, HIGH);
-    noteCount += direction;
-    delay(3000);
-    digitalWrite(beamPin, LOW);
-    baseReadings[x] = analogRead(lightSensor);
-    Serial.println(baseReadings[x]);
-  }
-  for(int x=0; x<=2; x++){
-    digitalWrite(beamPin, HIGH);
-    harpStepper.step(noteSpace * -1);
-    delay(3000);
-  }
-  delay(10000);
-  digitalWrite(beamPin, LOW);
-
-}
 
 void stopHarp(){
   harpStatus = false;
@@ -99,9 +86,6 @@ void stopHarp(){
 
 void loop() {
   if(harpStatus == false){
-    delay(3000);
-    collectBase();
-    delay(10000);
     Serial.print("CALLED");
     setStatus(READY);
     while(harpStatus == false){
@@ -119,35 +103,32 @@ void loop() {
   }
   else{
     isHome = false;
-    //harpStatus = checkControl();
     harpStepper.step(noteSpace * direction);
     digitalWrite(beamPin, HIGH);
+    curLight = analogRead(lightSensor);
+    beamReadings[beamCount] = curLight;
     noteCount += direction;
     delay(beamDelay);
     digitalWrite(beamPin, LOW);
-    rawLight = analogRead(lightSensor);
 
     if(noteCount == 0 || noteCount == notes){
       direction *= (-1);
     }
-
-    //Serial.println("ORIG NOTECOUNT: ");
-    //Serial.print(noteCount);
-    //delay(10000);
-    //Serial.println(lightRead);
-    if(int(rawLight) >= sensorTrig){
-      Serial.println(rawLight);
-      Serial.print("BREAK AT: ");
-      Serial.print(noteCount);
-      harpPlay(noteCount, 8);
+    if(beamCount>=4){
+      beamCount=0;
+    }else{
+      beamCount++;
     }
-    //Serial.println(rawLight);
-    //Serial.println(noteCount);
 
     if (digitalRead(controlPin) == HIGH){
       stopHarp();
+      for(int x=0; x<=3; x++){
+        Serial.println(beamReadings[x]);
+      }
+      Serial.println("sizeof: ");
     }
 
+  checkBeams(notes, beamReadings, sensorThreshold, sensorToss);
 }
 
 }
