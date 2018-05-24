@@ -1,5 +1,6 @@
-void harpPlay(int opt, int duration);
+void harpPlay(int opt, int duration=8);
 #define STARTUP 99
+#define speak 3
 
 #define NOTE_B0  31
 #define NOTE_C1  33
